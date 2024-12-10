@@ -1,0 +1,5 @@
+dbType: db
+dbCredentials:
+  url: jdbc:mysql://localhost:3306/phonebook
+  user: root
+  password: l1nx@3!
