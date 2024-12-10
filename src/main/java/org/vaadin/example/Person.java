@@ -1,5 +1,7 @@
 package org.vaadin.example;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 public class Person {
 
     private Integer id;
@@ -12,9 +14,10 @@ public class Person {
     private String country;
     private String phoneNumber;
     private String email;
-    private static transient int flag = 0;
+    private transient boolean flag = false;
 
 
+    
     public String getFirstName() {
         return firstName;
     }
@@ -75,11 +78,11 @@ public class Person {
         return city;
     }
 
-    public int getFlag() {
+    public boolean getFlag() {
         return flag;
     }
 
-    public void setFlag(int flag) {
+    public void setFlag(boolean flag) {
         this.flag = flag;
     }
 

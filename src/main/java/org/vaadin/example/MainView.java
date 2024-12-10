@@ -1,34 +1,26 @@
 package org.vaadin.example;
 
 
-import com.vaadin.flow.component.Text;
-import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.crud.BinderCrudEditor;
 import com.vaadin.flow.component.crud.Crud;
 import com.vaadin.flow.component.crud.CrudEditor;
 import com.vaadin.flow.component.crud.CrudFilter;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
-import com.vaadin.flow.component.orderedlayout.FlexComponent;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.provider.Query;
-
 import com.vaadin.flow.router.Route;
-
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
@@ -43,6 +35,7 @@ public class MainView extends VerticalLayout {
 
     private Crud<Person> crud;
 
+
     private String FIRST_NAME = "firstName";
     private String LAST_NAME = "lastName";
     private String STREET = "street";
@@ -51,8 +44,10 @@ public class MainView extends VerticalLayout {
     private String PHONE_NUMBER = "phoneNumber";
     private String EMAIL = "email";
     private String EDIT_COLUMN = "vaadin-crud-edit-column";
-    //private final static PersonDataProviderDb dataProvider = new PersonDataProviderDb();
-    private final static PersonDataProviderInMemory dataProvider = new PersonDataProviderInMemory();
+    private final static PersonDataProviderDb dataProvider = new PersonDataProviderDb();
+    private final static ConcurrentHashMap<Integer, Integer> personViewed = new ConcurrentHashMap<>();
+    private static Integer viewCount = 0;
+    //private final static PersonDataProviderInMemory dataProvider = new PersonDataProviderInMemory();
 
 
 
@@ -170,69 +165,73 @@ public class MainView extends VerticalLayout {
         grid.setColumnOrder(columns);
     }
 
-    private void setupDataProvider() {
-        Notification notification = new Notification("Someone else is updating this record", 2000);
-        notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-        crud.setDataProvider(dataProvider);
+private void setupDataProvider() {
+    Notification notification = new Notification("Someone else is updating this record", 2000);
+    notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+    crud.setDataProvider(dataProvider);
 
-        crud.addSaveListener(saveEvent -> {
+    crud.addSaveListener(saveEvent -> {
+        synchronized (dataProvider) {
             dataProvider.persist(saveEvent.getItem());
             dataProvider.refreshAll();
-        });
-        crud.addEditListener(editEvent -> {
+        }
+    });
 
+    crud.addCancelListener(cancelEvent -> {
+        synchronized (dataProvider) {
+            Person person = cancelEvent.getItem();
+            if (personViewed.get(person.getId()) > 0) {
+                personViewed.put(person.getId(), personViewed.get(person.getId()) - 1);
+            }
+            dataProvider.persist(cancelEvent.getItem());
+            cancelEvent.getSource().getSaveButton().setEnabled(true);
+            cancelEvent.getSource().getDeleteButton().setEnabled(true);
+        }
+    });
 
-                if (editEvent.getItem().getFlag()==1) {
+    crud.addEditListener(editEvent -> {
+        Person person = editEvent.getItem();
+        if (!personViewed.containsKey(person.getId())) {
+            personViewed.put(person.getId(), 0);
+        }
 
-                    notification.open();
+        synchronized (dataProvider) {
+            if (personViewed.get(person.getId()) > 0) {
+                System.out.println("Hello");
+                notification.open();
+                editEvent.getSource().getSaveButton().setEnabled(false);
+                editEvent.getSource().getDeleteButton().setEnabled(false);
+                personViewed.put(person.getId(), personViewed.get(person.getId()) + 1);
+//                dataProvider.refreshAll();
+            } else {
+                personViewed.put(person.getId(), personViewed.get(person.getId()) + 1);
 
-
-                    editEvent.getSource().getSaveButton().setEnabled(false);
-                    editEvent.getSource().getDeleteButton().setEnabled(false);
-
-                    editEvent.getSource().addCancelListener(cancelEvent->{
-                        editEvent.getItem().setFlag(0);
-                        System.out.println(editEvent.getItem().getFlag());
-                    });
-
-                    dataProvider.persist(editEvent.getItem());
-                    dataProvider.refreshAll();
-                } else {
-                    editEvent.getItem().setFlag(1);
-                        System.out.println(editEvent.getItem().getFlag());
-                        dataProvider.persist(editEvent.getItem());
-                        dataProvider.refreshAll();
-
-
-
-                    editEvent.getSource().addSaveListener(saveEvent -> {
-
-                        editEvent.getItem().setFlag(0);
-                        System.out.println(editEvent.getItem().getFlag());
+                editEvent.getSource().addSaveListener(saveEvent -> {
+                    synchronized (dataProvider) {
+                        if (personViewed.get(person.getId()) > 0) {
+                            personViewed.put(person.getId(), personViewed.get(person.getId()) - 1);
+                        }
+                        System.out.println(person.getFlag());
                         editEvent.getSource().getSaveButton().setEnabled(true);
                         editEvent.getSource().getDeleteButton().setEnabled(true);
                         dataProvider.persist(saveEvent.getItem());
-                        dataProvider.refreshItem(saveEvent.getItem());
-
-
-                    });
-
-                    editEvent.getSource().addCancelListener(cancelEvent -> {
-                        editEvent.getItem().setFlag(0);
-                        System.out.println(editEvent.getItem().getFlag());
-                        editEvent.getSource().getSaveButton().setEnabled(true);
-                        editEvent.getSource().getDeleteButton().setEnabled(true);
-                        dataProvider.persist(cancelEvent.getItem());
-                        dataProvider.refreshItem(cancelEvent.getItem());
-
-                    });
-
-                    editEvent.getSource().addDeleteListener(deleteEvent -> {
+                    }
+                });
+                editEvent.getSource().addDeleteListener(deleteEvent -> {
+                    synchronized (dataProvider) {
                         dataProvider.delete(deleteEvent.getItem());
-                    });
-                }
-            });
-    }
+                    }
+                });
+            }
+        }
+    });
+
+    crud.addNewListener(newEvent -> {
+        newEvent.getSource().getSaveButton().setEnabled(true);
+        newEvent.getSource().getDeleteButton().setEnabled(true);
+    });
+
+}
 
 
     private boolean isPhoneNumberUnique(Person person, String phoneNumber) {

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PersonDataProviderDb extends AbstractBackEndDataProvider<Person, CrudFilter> {
 
@@ -126,7 +127,7 @@ public class PersonDataProviderDb extends AbstractBackEndDataProvider<Person, Cr
     void persist(Person item) {
         try (Connection connection = DriverManager.getConnection(jdbcUrl, jdbcUser, jdbcPassword)) {
             if (item.getId() == null) {
-                String sql = "INSERT INTO Person (name,lname, street, city, country, phoneNumber, email) VALUES (?, ?, ?, ?, ?, ?)";
+                String sql = "INSERT INTO Person (name,lname, street, city, country, phoneNumber, email) VALUES (?,?, ?, ?, ?, ?, ?)";
                 try (PreparedStatement statement = connection.prepareStatement(sql)) {
                     statement.setString(1, item.getFirstName());
                     statement.setString(2,item.getLastName());

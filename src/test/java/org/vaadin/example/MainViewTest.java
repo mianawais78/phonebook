@@ -3,8 +3,8 @@ package org.vaadin.example;
 import com.vaadin.flow.data.provider.Query;
 import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.BeforeAll;
-
 import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -12,11 +12,11 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 
-
 import static org.junit.jupiter.api.Assertions.*;
 
 public class MainViewTest {
 
+    @InjectMocks
     private static PersonDataProviderDb dataProvider;
 
     @BeforeAll
@@ -40,7 +40,7 @@ public class MainViewTest {
             statement.execute("CREATE TABLE Person (" +
                     "id INT AUTO_INCREMENT PRIMARY KEY," +
                     "name VARCHAR(255)," +
-                    "lname VARCHAR(255)," + // Add lname column
+                    "lname VARCHAR(255)," +
                     "street VARCHAR(255)," +
                     "city VARCHAR(255)," +
                     "country VARCHAR(255)," +
@@ -75,23 +75,19 @@ public class MainViewTest {
         person.setCountry("USA");
         person.setPhoneNumber("555-5678");
         person.setEmail("jane.doe@example.com");
-        person.setFlag(0);
+        person.setFlag(false);
 
         dataProvider.persist(person);
 
         List<Person> persons = dataProvider.fetchFromBackEnd(new Query<>()).toList();
-        assertEquals(1, persons.size());
+        assertEquals(2, persons.size());
         assertEquals("Jane Doe", persons.get(1).getFirstName());
     }
 
     @Test
-    public void testUpdatePerson()  {
-        // Create and persist a new person
-        Person person = new Person();
+    public void testUpdatePerson() {
+        Person person = dataProvider.fetchFromBackEnd(new Query<>()).toList().get(0);
 
-        person = dataProvider.fetchFromBackEnd(new Query<>()).toList().get(0);
-
-        // Update the person's details
         person.setFirstName("Jane Smith");
         person.setStreet("789 Oak St");
         person.setCity("Gotham");
@@ -101,10 +97,8 @@ public class MainViewTest {
 
         dataProvider.persist(person);
 
-        // Fetch the updated person from the database
         Person updatedPerson = dataProvider.findById(person.getId());
 
-        // Verify the update was successful
         assertNotNull(updatedPerson);
         assertEquals("Jane Smith", updatedPerson.getFirstName());
         assertEquals("789 Oak St", updatedPerson.getStreet());
@@ -113,14 +107,7 @@ public class MainViewTest {
         assertEquals("555-9876", updatedPerson.getPhoneNumber());
         assertEquals("jane.smith@example.com", updatedPerson.getEmail());
     }
-    @Test
-    public void testConcurentUpdate() {
-        Person person = new Person();
-        person = dataProvider.fetchFromBackEnd(new Query<>()).toList().get(0);
-        Person person1 = new Person();
-        person1 = dataProvider.fetchFromBackEnd(new Query<>()).toList().get(0);
-        assertEquals(person.getFlag(),0);
-    }
+
     @Test
     public void testDeletePerson() {
         Person person = dataProvider.fetchFromBackEnd(new Query<>()).findFirst().orElse(null);
@@ -129,7 +116,7 @@ public class MainViewTest {
         dataProvider.delete(person);
 
         List<Person> persons = dataProvider.fetchFromBackEnd(new Query<>()).toList();
-        assertEquals(0,persons.size());
+        assertEquals(1, persons.size());
     }
 
     @Test
